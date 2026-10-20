@@ -32,6 +32,9 @@ canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
 .pick:hover{translate:0 -3px;box-shadow:0 9px 0 var(--ink)}
 .pick:active,.pick.press{translate:0 4px;box-shadow:0 2px 0 var(--ink)}
 .demo #credit,.demo #skip{display:none!important}
+#cap{position:fixed;left:50%;bottom:7vh;transform:translateX(-50%);padding:10px 24px 12px;border-radius:14px;background:rgba(36,22,58,.85);color:#fff;font:600 clamp(18px,1.55vw,30px) Fredoka,sans-serif;white-space:nowrap;opacity:0;transition:opacity .3s;z-index:6;pointer-events:none}
+#cap.on{opacity:1}
+#cap b{font:400 1.1em "Lilita One";color:var(--sun)}
 .pick:focus-visible,.btn:focus-visible{outline:4px solid var(--sun);outline-offset:3px}
 
 #odo{position:fixed;left:50%;top:clamp(76px,11vh,110px);transform:translateX(-50%);text-align:center;z-index:2;pointer-events:none}
@@ -387,7 +390,7 @@ const Z = [
   {at: 23.5, name: 'The cosmic web', sky: ['#05001A', '#1B0B3A'], air: true, p: [SPACE.m87bh, SPACE.whirlpool, '1f300', '2728', SPACE.andromeda]},
   {at: 26.94, name: 'Outside the observable universe', sky: ['#FF4F7B', '#FFD23F'], air: true, p: ['1f984', '1f308', '1f369', '1f986', '1f9c0', '1f47e']},
   {at: 32, name: 'The multiverse', sky: ['#2A0F5C', '#16B8A6'], air: true, p: ['1f300', '1f30c', '1f984', '1fa90', '1f308', '1f52e']},
-  {at: 40, name: 'Where cartoons go when they fly too far', sky: ['#7CF2C9', '#FFF27A'], air: true, p: [SPACE.nyan, '1f984', '1f308', '1f369', '1f9c1', '1f36d']},
+  {at: 40, name: 'Where cartoons go when they fly too far', sky: ['#7CF2C9', '#FFF27A'], air: true, p: ['1f984', '1f308', '1f369', '1f9c1', '1f36d', '1f388']},
   {at: 60, name: 'Somewhere even physics gave up', sky: ['#FFFFFF', '#DCD6FF'], air: true, p: ['2753', '1f4ab', '1f9e9', '1f300', '2728']},
   {at: 80, name: 'The edge of the scoreboard', sky: ['#24163A', '#FF4F7B'], air: true, p: ['1f3c6', '1f947', '1f389', '1f38a', '2b50']},
 ];
@@ -792,8 +795,17 @@ newPair(); setUI(); requestAnimationFrame(frame);
 var demoSpeed = 1, cardDelay = 1150;
 if (new URLSearchParams(location.search).has('demo')) runDemo();
 async function runDemo() {
-  const SHOTS = [['A banana', 'The Hulk', 0.6], ['Kirby', 'Godzilla Earth', 0.55], ['Pikachu', 'TON 618, a monster black hole', 0.5]];
+  const SHOTS = [['A banana', 'The Hulk', 0.6], ['Kirby', 'Godzilla Earth', 0.55], ['Pikachu', 'TON 618, a monster black hole', 0.41]];
+  const HOVER = [2200, 800, 1500];
   const sleep = ms => new Promise(r => setTimeout(r, ms));
+  // plain captions that explain the game, one at a time
+  const capEl = document.body.appendChild(Object.assign(document.createElement('div'), {id: 'cap'}));
+  let capTimer;
+  const cap = (html, ms) => {
+    clearTimeout(capTimer); capEl.classList.remove('on');
+    setTimeout(() => { capEl.innerHTML = html; capEl.classList.add('on'); }, 220);
+    if (ms) capTimer = setTimeout(() => capEl.classList.remove('on'), ms);
+  };
   const shots = SHOTS.map(([a, b, s]) => [ITEMS.find(i => i.n === a), ITEMS.find(i => i.n === b), s]);
   const show = ([a, b]) => { pair = [a, b]; pair.forEach((it, i) => { img(it.src); $('pick' + i).textContent = it.n; }); };
   document.body.classList.add('demo'); cardDelay = 700;
@@ -801,16 +813,26 @@ async function runDemo() {
   await sleep(2500);                                   // pictures load, OBS settles
   const obs = window.obsstudio; if (obs && obs.startRecording) obs.startRecording();
   const start = performance.now();
+  cap('Two things on a seesaw. Pick the lighter one.', 2300);
   for (let k = 0; k < shots.length; k++) {
     if (k) { newPair = () => show(shots[k]); nextRound(); await sleep(250); }
-    await sleep(k ? 800 : 1000);
+    if (k === 2) cap('Pikachu vs the heaviest black hole we know of.', 2200);
+    await sleep(HOVER[k]);
     demoSpeed = shots[k][2];
     const li = shots[k][0].kg < shots[k][1].kg ? 0 : 1, btn = $('pick' + li);
     btn.classList.add('press'); await sleep(160); btn.classList.remove('press');
     choose(li);
+    if (k === 0) cap('The heavy side slams down and throws the light one.', 3400);
+    if (k === 1) cap('The farther it goes, the more the world changes.', 3800);
+    if (k === 2) {
+      await sleep(1600); cap('Over 1,500 things to launch: Pokémon, pop culture, planets, galaxies.', 3600);
+      await sleep(3900); cap('Distances are wildly exaggerated. That\'s the point.', 2800);
+    }
     while (!cardShown) await sleep(30);
+    if (k === 0) cap('The bigger the weight gap, the farther it flies.', 2300);
     if (k < shots.length - 1) await sleep(900);
   }
+  cap('<b>Which Flies?</b> &nbsp;akashi7766.github.io/which-flies');
   await sleep(Math.max(0, 30000 - (performance.now() - start)));
   if (obs && obs.stopRecording) obs.stopRecording();
 }
