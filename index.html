@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="no-referrer">
 <title>Which Flies? — the seesaw weight game</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -49,6 +50,7 @@ canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
 .scale{display:grid;grid-template-columns:1fr auto;gap:4px 12px;padding:12px 14px;border:3px dashed var(--ink);border-radius:12px;margin-bottom:16px;font-size:16px}
 .scale b{font-family:'Lilita One';font-weight:400}
 .scale .note{grid-column:1/-1;font-size:13px;opacity:.7;margin-top:4px}
+#card .fine{margin:12px 0 0;font-size:12px;line-height:1.3;opacity:.6;text-align:center}
 .btn{font:400 22px 'Lilita One';padding:9px 22px 11px;width:100%;background:var(--pop);color:#fff;border:4px solid var(--ink);border-radius:999px;box-shadow:0 6px 0 var(--ink);cursor:pointer}
 .btn:active{translate:0 4px;box-shadow:0 2px 0 var(--ink)}
 #skip{position:fixed;right:16px;bottom:16px;width:auto;font-size:16px;padding:6px 16px 8px;background:var(--paper);color:var(--ink);z-index:3}
@@ -91,11 +93,13 @@ canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
   <p id="cBody"></p>
   <div class="scale" id="cScale"></div>
   <button class="btn" id="next">Next pair</button>
+  <p class="fine">Distances are wildly exaggerated for fun. A real seesaw can't throw anything past the Moon.</p>
 </div>
 
 <div id="fade"></div>
 <div id="credit">Art: <a href="https://github.com/jdecked/twemoji" target="_blank" rel="noopener">Twemoji</a> (CC-BY 4.0) · <a href="https://pokeapi.co" target="_blank" rel="noopener">PokéAPI</a> · Wikipedia</div>
 
+<script src="items.js"></script>
 <script>
 // ---------- assets ----------
 const TW = c => `https://cdn.jsdelivr.net/gh/jdecked/twemoji@15.1.0/assets/svg/${c}.svg`;
@@ -149,7 +153,7 @@ const SPACE = {
   nyan: WIKI + 'en/e/ed/Nyan_cat_250px_frame.PNG',
 };
 
-const ITEMS = [
+const BASE_ITEMS = [
   // Pokémon — official Pokédex weights
   poke('Pikachu', 6, 25), poke('Snorlax', 460, 143), poke('Charizard', 90.5, 6), poke('Jigglypuff', 5.5, 39),
   poke('Gengar', 40.5, 94), poke('Onix', 210, 95), poke('Mewtwo', 122, 150), poke('Eevee', 6.5, 133),
@@ -326,9 +330,35 @@ const ITEMS = [
   {n: 'The Voyager 1 probe', kg: 825.5, src: SPACE.voyager}, {n: 'The James Webb Space Telescope', kg: 6161, src: SPACE.jwst},
 ];
 
+// generated list wins on duplicate names (its pictures are single-character renders)
+const ITEMS = [];
+for (const it of [...EXTRA, ...BASE_ITEMS]) if (!ITEMS.some(o => o.n === it.n)) ITEMS.push(it);
+const SPACE_SRC = new Set(Object.values(SPACE));
+for (const it of ITEMS) it.cat ||= it.src.includes('PokeAPI') ? 'poke' : it.src.includes('twemoji') ? 'thing' : SPACE_SRC.has(it.src) ? 'real' : 'pop';
+const BY_CAT = {}; for (const it of ITEMS) (BY_CAT[it.cat] ||= []).push(it);
+const CAT_ODDS = [['thing', 0.32], ['pop', 0.32], ['poke', 0.2], ['real', 0.16]];   // so no one kind takes over
+const randomItem = () => {
+  let r = Math.random(), cat = 'thing';
+  for (const [c, p] of CAT_ODDS) { if ((r -= p) < 0) { cat = c; break; } }
+  const list = BY_CAT[cat]; return list[Math.random() * list.length | 0];
+};
+
+// screenshots and photos have solid corners; those get drawn in a framed card instead of as a cut-out
+const probe = Object.assign(document.createElement('canvas'), {width: 8, height: 8}).getContext('2d', {willReadFrequently: true});
+function hasBackground(im) {
+  try {
+    probe.clearRect(0, 0, 8, 8); probe.drawImage(im, 0, 0, 8, 8);
+    const d = probe.getImageData(0, 0, 8, 8).data, a = i => d[i * 4 + 3];
+    return [a(0), a(7), a(56), a(63)].filter(v => v > 240).length >= 3;
+  } catch (e) { return false; }
+}
 const imgCache = {};
 function img(src) {
-  if (!imgCache[src]) { const im = new Image(); im.decoding = 'async'; im.onload = () => im.ok = true; im.onerror = () => im.bad = true; im.src = src; imgCache[src] = im; }
+  if (!imgCache[src]) {
+    const im = new Image(); im.decoding = 'async'; im.referrerPolicy = 'no-referrer'; im.crossOrigin = 'anonymous';
+    im.onload = () => { im.ok = true; im.opaque = hasBackground(im); };
+    im.onerror = () => im.bad = true; im.src = src; imgCache[src] = im;
+  }
   return imgCache[src];
 }
 
@@ -357,6 +387,8 @@ const Z = [
   {at: 26.94, name: 'Outside the observable universe', sky: ['#FF4F7B', '#FFD23F'], air: true, p: ['1f984', '1f308', '1f369', '1f986', '1f9c0', '1f47e']},
   {at: 32, name: 'The multiverse', sky: ['#2A0F5C', '#16B8A6'], air: true, p: ['1f300', '1f30c', '1f984', '1fa90', '1f308', '1f52e']},
   {at: 40, name: 'Where cartoons go when they fly too far', sky: ['#7CF2C9', '#FFF27A'], air: true, p: [SPACE.nyan, '1f984', '1f308', '1f369', '1f9c1', '1f36d']},
+  {at: 60, name: 'Somewhere even physics gave up', sky: ['#FFFFFF', '#DCD6FF'], air: true, p: ['2753', '1f4ab', '1f9e9', '1f300', '2728']},
+  {at: 80, name: 'The edge of the scoreboard', sky: ['#24163A', '#FF4F7B'], air: true, p: ['1f3c6', '1f947', '1f389', '1f38a', '2b50']},
 ];
 const zoneIdx = lg => { let i = 0; while (i < Z.length - 1 && lg >= Z[i + 1].at) i++; return i; };
 
@@ -378,6 +410,7 @@ function fmtNum(x) {
 }
 function sci(x) { const e = Math.floor(Math.log10(x)); return `${+(x / 10 ** e).toFixed(2)} × 10<sup>${e}</sup>`; }
 function fmtKg(kg) {
+  if (kg < 1e-6) return `${sci(kg)} kg`;
   if (kg < 0.001) return `${+(kg * 1e6).toPrecision(3)} mg`;
   if (kg < 1) return `${+(kg * 1000).toPrecision(3)} g`;
   if (kg < 1000) return `${kg.toLocaleString('en')} kg`;
@@ -431,8 +464,8 @@ function newPair() {
   const close = Math.random() < 0.5;   // half the rounds are a closer (harder) call
   const ok = () => a !== b && !img(a.src).bad && !img(b.src).bad && !lastPair.includes(a) && !lastPair.includes(b) &&
     Math.abs(Math.log10(a.kg / b.kg)) > 0.03 && (!close || Math.abs(Math.log10(a.kg / b.kg)) < 1.3);
-  do { a = ITEMS[Math.random() * ITEMS.length | 0]; b = ITEMS[Math.random() * ITEMS.length | 0]; } while (!ok() && ++n < 500);
-  lastPair = [a, b]; pair = [a, b];
+  do { a = randomItem(); b = randomItem(); } while (!ok() && ++n < 500);
+  lastPair = [...lastPair, a, b].slice(-60); pair = [a, b];   // no repeats for ~30 rounds
   pair.forEach((it, i) => { img(it.src); const btn = $('pick' + i); btn.textContent = it.n; btn.setAttribute('aria-label', `${it.n} is lighter`); });
 }
 
@@ -591,7 +624,7 @@ function drawItem(it, x, y, rot = 0) {
     ctx.save(); ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.clip(); ctx.fillStyle = '#000'; ctx.fill();
     ctx.drawImage(im, -iw * c / 2, -ih * c / 2, iw * c, ih * c); ctx.restore();
     ctx.strokeStyle = '#24163A'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.stroke();
-  } else if (it.card) {
+  } else if (it.card || im.opaque) {
     const s = S * 0.92, iw = im.naturalWidth, ih = im.naturalHeight, c = Math.max(s / iw, s / ih);
     ctx.fillStyle = '#24163A'; rr(-s / 2, -s / 2 + 6, s, s, 18); ctx.fill();
     ctx.save(); rr(-s / 2, -s / 2, s, s, 18); ctx.clip();

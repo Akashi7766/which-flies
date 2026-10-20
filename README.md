@@ -4,6 +4,6 @@ A seesaw weight game. Two things hover over a seesaw — Pokémon, pop-culture i
 
 **Play:** https://akashi7766.github.io/which-flies/
 
-One `index.html`, no build step. Open it locally or serve the folder.
+`index.html` plus the item list in `items.js` — no build step. Open it locally or serve the folder.
 
 Art: [Twemoji](https://github.com/jdecked/twemoji) (CC-BY 4.0), Pokémon artwork via [PokéAPI](https://pokeapi.co), pop-culture and space images via Wikipedia / Wikimedia Commons. Pokémon weights are official Pokédex values; fictional weights marked ≈ are fan estimates.
