@@ -336,7 +336,7 @@ for (const it of [...EXTRA, ...BASE_ITEMS]) if (!ITEMS.some(o => o.n === it.n)) 
 const SPACE_SRC = new Set(Object.values(SPACE));
 for (const it of ITEMS) it.cat ||= it.src.includes('PokeAPI') ? 'poke' : it.src.includes('twemoji') ? 'thing' : SPACE_SRC.has(it.src) ? 'real' : 'pop';
 const BY_CAT = {}; for (const it of ITEMS) (BY_CAT[it.cat] ||= []).push(it);
-const CAT_ODDS = [['thing', 0.32], ['pop', 0.32], ['poke', 0.2], ['real', 0.16]];   // so no one kind takes over
+const CAT_ODDS = [['thing', 0.28], ['pop', 0.28], ['poke', 0.17], ['real', 0.13], ['huge', 0.14]];   // so no one kind takes over
 const randomItem = () => {
   let r = Math.random(), cat = 'thing';
   for (const [c, p] of CAT_ODDS) { if ((r -= p) < 0) { cat = c; break; } }
