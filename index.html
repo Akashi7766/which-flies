@@ -1,0 +1,757 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Which Flies? — the seesaw weight game</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600&family=Lilita+One&family=Rubik+Mono+One&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#24163A;--sky:#7FD1FF;--grass:#5ED36A;--wood:#F2A93B;--pop:#FF4F7B;--sun:#FFD23F;--paper:#fff}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--sky);font-family:Fredoka,system-ui,sans-serif;color:var(--ink)}
+canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
+.sticker{background:var(--paper);border:4px solid var(--ink);border-radius:18px;box-shadow:0 6px 0 var(--ink)}
+.outline{color:#fff;text-shadow:3px 0 0 var(--ink),-3px 0 0 var(--ink),0 3px 0 var(--ink),0 -3px 0 var(--ink),2px 2px 0 var(--ink),-2px 2px 0 var(--ink),2px -2px 0 var(--ink),-2px -2px 0 var(--ink),0 7px 0 var(--ink)}
+
+#top{position:fixed;top:14px;left:14px;right:14px;display:flex;justify-content:space-between;align-items:flex-start;gap:12px;pointer-events:none;z-index:2}
+#logo{font-family:'Lilita One';font-size:clamp(20px,3.2vw,32px);padding:2px 16px 6px;transform:rotate(-3deg);background:var(--sun);margin:0;font-weight:400}
+#logo span{color:var(--pop)}
+#stats{display:flex;gap:10px}
+.stat{padding:5px 14px 7px;text-align:right;line-height:1.05}
+.stat b{display:block;font-family:'Lilita One';font-size:clamp(17px,2.4vw,22px);font-weight:400}
+.stat small{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;opacity:.65}
+
+#ask{position:fixed;left:0;right:0;top:clamp(78px,12vh,120px);text-align:center;pointer-events:none;z-index:1}
+#ask h2{margin:0;font-family:'Lilita One';font-weight:400;font-size:clamp(28px,5.6vw,58px);letter-spacing:.01em}
+#ask p{margin:8px 0 0;font-weight:600;font-size:clamp(14px,1.8vw,18px)}
+
+.pick{position:fixed;left:0;top:0;transform:translate(-50%,-100%);font:400 clamp(16px,2.2vw,22px) 'Lilita One';padding:7px 18px 9px;background:var(--pop);color:#fff;border:4px solid var(--ink);border-radius:999px;box-shadow:0 6px 0 var(--ink);cursor:pointer;white-space:nowrap;max-width:46vw;overflow:hidden;text-overflow:ellipsis;z-index:3;transition:box-shadow .08s,translate .08s}
+.pick:hover{translate:0 -3px;box-shadow:0 9px 0 var(--ink)}
+.pick:active{translate:0 4px;box-shadow:0 2px 0 var(--ink)}
+.pick:focus-visible,.btn:focus-visible{outline:4px solid var(--sun);outline-offset:3px}
+
+#odo{position:fixed;left:50%;top:clamp(76px,11vh,110px);transform:translateX(-50%);text-align:center;z-index:2;pointer-events:none}
+#odoNum{font-family:'Rubik Mono One';font-size:clamp(20px,4.6vw,52px);padding:8px 22px 10px;white-space:nowrap;display:inline-block}
+#odoNum sup{font-size:.5em}
+#zone{display:inline-block;margin-top:12px;padding:5px 14px 6px;border-radius:999px;background:var(--ink);color:var(--sun);font-weight:600;font-size:clamp(12px,1.6vw,16px);letter-spacing:.06em;text-transform:uppercase}
+#zone.flash{animation:flash .5s cubic-bezier(.3,1.6,.5,1)}
+@keyframes flash{0%{transform:scale(.4) rotate(-6deg)}100%{transform:none}}
+
+#card{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:min(440px,calc(100vw - 28px));padding:20px 24px 24px;z-index:4;animation:pop .45s cubic-bezier(.3,1.6,.5,1)}
+@keyframes pop{0%{transform:translate(-50%,-50%) scale(.6)}100%{transform:translate(-50%,-50%)}}
+#card .eyebrow{display:inline-block;font:400 15px 'Lilita One';letter-spacing:.06em;text-transform:uppercase;padding:3px 12px 4px;border-radius:999px;border:3px solid var(--ink);background:var(--grass)}
+#card.wrong .eyebrow{background:var(--pop);color:#fff}
+#card h3{font:400 clamp(24px,4vw,32px)/1.1 'Lilita One';margin:12px 0 6px}
+#card p{margin:0 0 14px;font-size:17px;line-height:1.35}
+#card sup,#stats sup{font-size:.6em}
+.scale{display:grid;grid-template-columns:1fr auto;gap:4px 12px;padding:12px 14px;border:3px dashed var(--ink);border-radius:12px;margin-bottom:16px;font-size:16px}
+.scale b{font-family:'Lilita One';font-weight:400}
+.scale .note{grid-column:1/-1;font-size:13px;opacity:.7;margin-top:4px}
+.btn{font:400 22px 'Lilita One';padding:9px 22px 11px;width:100%;background:var(--pop);color:#fff;border:4px solid var(--ink);border-radius:999px;box-shadow:0 6px 0 var(--ink);cursor:pointer}
+.btn:active{translate:0 4px;box-shadow:0 2px 0 var(--ink)}
+#skip{position:fixed;right:16px;bottom:16px;width:auto;font-size:16px;padding:6px 16px 8px;background:var(--paper);color:var(--ink);z-index:3}
+
+#fade{position:fixed;inset:0;background:#fff;opacity:0;pointer-events:none;transition:opacity .18s;z-index:5}
+#credit{position:fixed;left:12px;bottom:8px;font-size:11px;opacity:.75;z-index:1}
+#credit a{color:inherit}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<canvas id="c" aria-hidden="true"></canvas>
+
+<header id="top">
+  <h1 id="logo" class="sticker">Which <span>Flies?</span></h1>
+  <div id="stats">
+    <div class="stat sticker"><b id="sStreak">0</b><small>Streak</small></div>
+    <div class="stat sticker"><b id="sTotal">0 m</b><small>Total launched</small></div>
+  </div>
+</header>
+
+<div id="ask">
+  <h2 class="outline">Which one is lighter?</h2>
+  <p>Pick right and the launch counts toward your total.</p>
+</div>
+
+<button class="pick" id="pick0"></button>
+<button class="pick" id="pick1"></button>
+
+<div id="odo" hidden>
+  <div id="odoNum" class="sticker">0 m</div><br>
+  <div id="zone">The Backyard</div>
+</div>
+
+<button id="skip" class="btn sticker" hidden>Skip to landing</button>
+
+<div id="card" class="sticker" role="dialog" aria-live="polite" hidden>
+  <span class="eyebrow" id="cEye"></span>
+  <h3 id="cHead"></h3>
+  <p id="cBody"></p>
+  <div class="scale" id="cScale"></div>
+  <button class="btn" id="next">Next pair</button>
+</div>
+
+<div id="fade"></div>
+<div id="credit">Art: <a href="https://github.com/jdecked/twemoji" target="_blank" rel="noopener">Twemoji</a> (CC-BY 4.0) · <a href="https://pokeapi.co" target="_blank" rel="noopener">PokéAPI</a> · Wikipedia</div>
+
+<script>
+// ---------- assets ----------
+const TW = c => `https://cdn.jsdelivr.net/gh/jdecked/twemoji@15.1.0/assets/svg/${c}.svg`;
+const PK = id => `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${id}.png`;
+const WIKI = 'https://upload.wikimedia.org/wikipedia/';
+const THUMB = 'https://thumb.wikimedia.org/wikipedia/';
+
+const poke = (n, kg, id) => ({n, kg, src: PK(id)});
+const thing = (n, kg, code) => ({n, kg, src: TW(code)});
+const pop = (n, kg, src, o = {}) => ({n, kg, src, est: true, ...o});
+const C = p => THUMB + 'commons/thumb/' + p;   // NASA / ESA images on Wikimedia Commons
+const SPACE = {
+  mercury: C('4/4a/Mercury_in_true_color.jpg/330px-Mercury_in_true_color.jpg'),
+  venus: C('0/08/Venus_from_Mariner_10.jpg/330px-Venus_from_Mariner_10.jpg'),
+  mars: C('0/0c/Mars_-_August_30_2021_-_Flickr_-_Kevin_M._Gill.png/330px-Mars_-_August_30_2021_-_Flickr_-_Kevin_M._Gill.png'),
+  jupiter: C('e/e2/Jupiter_OPAL_2024.png/330px-Jupiter_OPAL_2024.png'),
+  saturn: C('4/43/Saturn_global_view_from_Cassini%2C_rings_open_Better_Colour.png/330px-Saturn_global_view_from_Cassini%2C_rings_open_Better_Colour.png'),
+  uranus: C('6/69/Uranus_Voyager2_color_calibrated.png/330px-Uranus_Voyager2_color_calibrated.png'),
+  neptune: C('b/b9/Neptune_Voyager2_color_calibrated.png/330px-Neptune_Voyager2_color_calibrated.png'),
+  pluto: C('c/ca/Pluto_in_True_Color_-_High-Res.png/330px-Pluto_in_True_Color_-_High-Res.png'),
+  ceres: C('7/76/Ceres_-_RC3_-_Haulani_Crater_%2822381131691%29_%28cropped%29.jpg/330px-Ceres_-_RC3_-_Haulani_Crater_%2822381131691%29_%28cropped%29.jpg'),
+  io: C('0/07/Io_highest_resolution_natural_color.png/330px-Io_highest_resolution_natural_color.png'),
+  europa: C('b/b3/Europa_-_Perijove_45_%28cropped%29.png/330px-Europa_-_Perijove_45_%28cropped%29.png'),
+  ganymede: C('2/21/Ganymede_-_Perijove_34_Composite.png/330px-Ganymede_-_Perijove_34_Composite.png'),
+  callisto: C('c/c6/Callisto_VGR2_C2060635_OGB.png/330px-Callisto_VGR2_C2060635_OGB.png'),
+  titan: C('f/fe/Titan_in_true_color_by_Kevin_M._Gill.jpg/330px-Titan_in_true_color_by_Kevin_M._Gill.jpg'),
+  enceladus: C('8/83/PIA17202_-_Approaching_Enceladus.jpg/330px-PIA17202_-_Approaching_Enceladus.jpg'),
+  triton: C('9/98/Triton-usgs23-with-frame.jpg/330px-Triton-usgs23-with-frame.jpg'),
+  phobos: C('5/5c/Phobos_colour_2008.jpg/330px-Phobos_colour_2008.jpg'),
+  vesta: C('5/51/Vesta_in_natural_color.jpg/330px-Vesta_in_natural_color.jpg'),
+  bennu: C('8/8d/Bennu_mosaic_OSIRIS-REx_%28square%29.png/330px-Bennu_mosaic_OSIRIS-REx_%28square%29.png'),
+  arrokoth: C('a/af/Reworked_composite_image_of_Arrokoth.png/330px-Reworked_composite_image_of_Arrokoth.png'),
+  moon: C('e/e1/FullMoon2010.jpg/330px-FullMoon2010.jpg'),
+  sgra: C('9/96/EHT_Saggitarius_A_black_hole.tif/lossy-page1-330px-EHT_Saggitarius_A_black_hole.tif.jpg'),
+  m87bh: C('4/4f/Black_hole_-_Messier_87_crop_max_res.jpg/330px-Black_hole_-_Messier_87_crop_max_res.jpg'),
+  halley: C('2/2a/Lspn_comet_halley.jpg/330px-Lspn_comet_halley.jpg'),
+  iss: C('5/59/The_station_pictured_from_the_SpaceX_Crew_Dragon_5.jpg/330px-The_station_pictured_from_the_SpaceX_Crew_Dragon_5.jpg'),
+  hubble: C('4/4a/Hubble_2009_close-up_2.jpg/330px-Hubble_2009_close-up_2.jpg'),
+  curiosity: C('f/f3/Curiosity_Self-Portrait_at_%27Big_Sky%27_Drilling_Site.jpg/330px-Curiosity_Self-Portrait_at_%27Big_Sky%27_Drilling_Site.jpg'),
+  starship: C('4/4a/SpaceX_Starship_ignition_during_IFT-5.jpg/330px-SpaceX_Starship_ignition_during_IFT-5.jpg'),
+  lm: C('2/2f/Apollo_14_Lunar_Module_%28LM%29_on_the_moon.jpg/330px-Apollo_14_Lunar_Module_%28LM%29_on_the_moon.jpg'),
+  roadster: C('8/87/Elon_Musk%27s_Tesla_Roadster_%2840143096241%29.jpg/330px-Elon_Musk%27s_Tesla_Roadster_%2840143096241%29.jpg'),
+  laika: C('e/ea/Laika_in_1957.jpg/330px-Laika_in_1957.jpg'),
+  andromeda: C('0/05/Andromeda_Galaxy_2025.png/330px-Andromeda_Galaxy_2025.png'),
+  whirlpool: C('d/db/Messier51_sRGB.jpg/330px-Messier51_sRGB.jpg'),
+  crab: C('0/00/Crab_Nebula.jpg/330px-Crab_Nebula.jpg'),
+  orion: C('f/f3/Orion_Nebula_-_Hubble_2006_mosaic_18000.jpg/330px-Orion_Nebula_-_Hubble_2006_mosaic_18000.jpg'),
+  pillars: C('b/b2/Eagle_nebula_pillars.jpg/330px-Eagle_nebula_pillars.jpg'),
+  voyager: C('6/60/Voyager_spacecraft_model.png/330px-Voyager_spacecraft_model.png'),
+  jwst: C('2/2a/JWST_spacecraft_model_3.png/330px-JWST_spacecraft_model_3.png'),
+  nyan: WIKI + 'en/e/ed/Nyan_cat_250px_frame.PNG',
+};
+
+const ITEMS = [
+  // Pokémon — official Pokédex weights
+  poke('Pikachu', 6, 25), poke('Snorlax', 460, 143), poke('Charizard', 90.5, 6), poke('Jigglypuff', 5.5, 39),
+  poke('Gengar', 40.5, 94), poke('Onix', 210, 95), poke('Mewtwo', 122, 150), poke('Eevee', 6.5, 133),
+  poke('Gastly', 0.1, 92), poke('Groudon', 950, 383), poke('Celesteela', 999.9, 797), poke('Bulbasaur', 6.9, 1),
+  poke('Squirtle', 9, 7), poke('Psyduck', 19.6, 54), poke('Magikarp', 10, 129), poke('Gyarados', 235, 130),
+  poke('Wailord', 398, 321), poke('Diglett', 0.8, 50), poke('Lucario', 54, 448), poke('Mew', 4, 151),
+  poke('Dragonite', 210, 149), poke('Steelix', 400, 208), poke('Metagross', 550, 376), poke('Cosmog', 0.1, 789),
+  poke('Togepi', 1.5, 175), poke('Lapras', 220, 131), poke('Machamp', 130, 68), poke('Rowlet', 1.5, 722),
+  // everyday things
+  thing('A feather', 0.001, '1fab6'), thing('An elephant', 6000, '1f418'), thing('A blue whale', 150000, '1f40b'),
+  thing('A banana', 0.12, '1f34c'), thing('A watermelon', 9, '1f349'), thing('A car', 1500, '1f697'),
+  thing('A bicycle', 15, '1f6b2'), thing('A cat', 4.5, '1f408'), thing('A dog', 30, '1f415'),
+  thing('A mouse', 0.02, '1f401'), thing('A bowling set', 7, '1f3b3'), thing('A slice of pizza', 0.1, '1f355'),
+  thing('A Saturn V rocket', 2.9e6, '1f680'), thing('A jumbo jet', 412000, '2708'), thing('A house', 80000, '1f3e0'),
+  thing('A moai statue', 12500, '1f5ff'), thing('The Statue of Liberty', 204000, '1f5fd'), thing('A T. rex', 8400, '1f996'),
+  thing('A balloon', 0.003, '1f388'), thing('A burger', 0.25, '1f354'), thing('A smartphone', 0.2, '1f4f1'),
+  thing('A laptop', 1.5, '1f4bb'), thing('A brick', 2.3, '1f9f1'), thing('A tractor', 5000, '1f69c'),
+  thing('The Titanic', 5.231e7, '1f6a2'), thing('Planet Earth', 5.972e24, '1f30d'), thing('The Moon', 7.35e22, '1f315'),
+  thing('The Sun', 1.989e30, '2600'), thing('A penguin', 23, '1f427'), thing('A hippo', 1500, '1f99b'),
+  thing('A gorilla', 160, '1f98d'), thing('An ant', 0.000003, '1f41c'), thing('A bee', 0.0001, '1f41d'),
+  thing('An egg', 0.05, '1f95a'), thing('A teddy bear', 0.4, '1f9f8'), thing('A giraffe', 1200, '1f992'),
+  thing('A pineapple', 1, '1f34d'), thing('A guitar', 3.5, '1f3b8'), thing('A paperclip', 0.001, '1f4ce'),
+  // pop culture — fan / canon estimates
+  pop("Captain America's shield", 5.4, THUMB + 'commons/thumb/b/b9/Captain_America%27s_shield.svg/330px-Captain_America%27s_shield.svg.png', {est: false, note: '12 lb, per Marvel'}),
+  pop('The Death Star', 1e21, WIKI + 'en/f/f9/Death_star1.png'),
+  pop('The Hulk', 635, WIKI + 'en/a/aa/Hulk_%28circa_2019%29.png', {est: false, note: '1,400 lb, per Marvel'}),
+  pop('Thanos', 447, WIKI + 'en/b/b7/Thanos_%28Infobox_image%29.png', {est: false, note: '985 lb, per Marvel'}),
+  pop('Shrek', 200, WIKI + 'en/4/4d/Shrek_%28character%29.png'),
+  pop('Mario', 89, WIKI + 'en/5/5c/Mario_by_Shigehisa_Nakaue.png'),
+  pop('Groot', 3629, WIKI + 'en/3/3b/Groot.png', {est: false, note: '8,000 lb, per Marvel'}),
+  pop('SpongeBob', 1, THUMB + 'commons/thumb/a/a2/SpongeBob_character.svg/330px-SpongeBob_character.svg.png'),
+  pop('Kirby', 1, THUMB + 'en/thumb/4/4e/Kirby_Nintendo.png/330px-Kirby_Nintendo.png'),
+  pop('Garfield', 9, THUMB + 'en/thumb/b/bc/Garfield_the_Cat.svg/330px-Garfield_the_Cat.svg.png'),
+  pop('Homer Simpson', 109, WIKI + 'en/0/02/Homer_Simpson_2006.png', {est: false, note: '241 lb, per the show'}),
+  pop('WALL·E', 135, WIKI + 'en/6/68/WALL-E_%28character%29.png'),
+  pop('Hello Kitty', 0.6, WIKI + 'en/0/05/Hello_kitty_character_portrait.png', {card: true, est: false, note: 'officially "three apples"'}),
+  pop('Patrick Star', 2, THUMB + 'commons/thumb/2/28/Patrick_Star_character.png/330px-Patrick_Star_character.png'),
+  pop('Sonic', 35, THUMB + 'en/thumb/f/f4/Sonic_modern_and_classic_designs.png/330px-Sonic_modern_and_classic_designs.png', {est: false, note: 'per Sega'}),
+  pop('Pac-Man', 0.5, THUMB + 'commons/thumb/f/fb/Pac-Man_ingame_and_2D_alternative_design.png/330px-Pac-Man_ingame_and_2D_alternative_design.png'),
+  pop('Grogu', 17, WIKI + 'en/a/a0/Grogu_%28Star_Wars%29.jpg', {card: true}),
+  pop('Darth Vader', 136, WIKI + 'en/0/0b/Darth_Vader_in_The_Empire_Strikes_Back.jpg', {card: true, est: false, note: 'per the Star Wars Databank'}),
+  pop('R2-D2', 32, THUMB + 'commons/thumb/6/61/Parents_of_Earth%2C_are_your_children_fully_immunized_%284647268251%29_%28cropped%29_auto_color_%28cropped_to_R2-D2%29.jpg/330px-Parents_of_Earth%2C_are_your_children_fully_immunized_%284647268251%29_%28cropped%29_auto_color_%28cropped_to_R2-D2%29.jpg', {card: true, est: false, note: 'per the Star Wars Databank'}),
+  pop('The Millennium Falcon', 1e6, WIKI + 'en/8/8d/A_screenshot_from_Star_Wars_Episode_IV_A_New_Hope_depicting_the_Millennium_Falcon.jpg', {card: true}),
+  pop('Godzilla', 9.07e7, THUMB + 'commons/thumb/9/99/Godzilla_%281954%29_%28cropped%29.jpg/330px-Godzilla_%281954%29_%28cropped%29.jpg', {card: true, est: false, note: '90,000 tons, per Legendary (2014)'}),
+  pop("A Rubik's Cube", 0.1, THUMB + 'commons/thumb/6/61/Rubiks_cube_solved.jpg/330px-Rubiks_cube_solved.jpg', {card: true, est: false}),
+  pop('Iron Man', 102, WIKI + 'en/4/47/Iron_Man_%28circa_2018%29.png'),
+  pop('Spider-Man', 76, WIKI + 'en/2/21/Web_of_Spider-Man_Vol_1_129-1.png', {card: true, est: false, note: '167 lb, per Marvel'}),
+  pop('Batman', 95, WIKI + 'en/c/c7/Batman_Infobox.jpg', {card: true, est: false, note: '210 lb, per DC'}),
+  pop('Superman', 107, WIKI + 'en/3/35/Supermanflying.png', {est: false, note: '235 lb, per DC'}),
+  pop('Wonder Woman', 75, WIKI + 'en/6/6b/Wonder_Woman_750.jpg', {card: true}),
+  pop('Thor', 290, WIKI + 'en/1/1a/Thor_%28Marvel_Comics%29.png', {est: false, note: '640 lb, per Marvel'}),
+  pop('Deadpool', 95, WIKI + 'en/c/ca/Deadpool.png', {est: false, note: '210 lb, per Marvel'}),
+  pop('Venom', 118, WIKI + 'en/b/b0/Venom_%28Marvel_Comics_character%29.png', {est: false, note: '260 lb, per Marvel'}),
+  pop('Galactus', 8165, WIKI + 'en/a/a7/Galactus_%282018%29.jpg', {card: true, est: false, note: '18,000 lb, per Marvel'}),
+  pop('Ego the Living Planet', 6e24, WIKI + 'en/8/8c/Egoplanet.PNG', {card: true}),
+  pop('The Joker', 87, WIKI + 'en/5/5f/Batman_Three_Jokers.jpg', {card: true, est: false, note: '192 lb, per DC'}),
+  pop('Mickey Mouse', 12, THUMB + 'commons/thumb/4/4f/Mickey_Mouse_%28poster_version%29.svg/330px-Mickey_Mouse_%28poster_version%29.svg.png'),
+  pop('Donald Duck', 8, WIKI + 'en/a/a5/Donald_Duck_angry_transparent_background.png'),
+  pop('Bugs Bunny', 4, THUMB + 'en/thumb/1/17/Bugs_Bunny.svg/330px-Bugs_Bunny.svg.png'),
+  pop('Scooby-Doo', 60, WIKI + 'en/5/53/Scooby-Doo.png'),
+  pop('Stitch', 30, THUMB + 'en/thumb/d/d2/Stitch_%28Lilo_%26_Stitch%29.svg/330px-Stitch_%28Lilo_%26_Stitch%29.svg.png'),
+  pop('Olaf', 15, WIKI + 'en/6/6d/Olaf_from_Disney%27s_Frozen.png'),
+  pop('Elsa', 55, WIKI + 'en/5/5e/Elsa_from_Disney%27s_Frozen.png'),
+  pop('Simba', 190, WIKI + 'en/9/94/Simba_%28_Disney_character_-_adult%29.png'),
+  pop('Buzz Lightyear', 0.5, THUMB + 'commons/thumb/0/02/Buzz_Lightyear_sculpture_of_Toy_Story_Hotel_Shanghai_%28cropped%29.jpg/330px-Buzz_Lightyear_sculpture_of_Toy_Story_Hotel_Shanghai_%28cropped%29.jpg', {card: true}),
+  pop('Woody', 0.4, THUMB + 'commons/thumb/0/03/Woody_at_Toy_Story_Land%2C_Hong_Kong.jpg/330px-Woody_at_Toy_Story_Land%2C_Hong_Kong.jpg', {card: true}),
+  pop('Mike Wazowski', 30, WIKI + 'en/6/6a/Mike_Wazowski.png'),
+  pop('Lightning McQueen', 1500, WIKI + 'en/8/82/Lightning_McQueen.png'),
+  pop('Po the panda', 130, WIKI + 'en/3/3d/Po_from_DreamWorks_Animation%27s_Kung_Fu_Panda.png'),
+  pop('Puss in Boots', 5, WIKI + 'en/8/8a/Puss_in_Boots_from_Shrek.png'),
+  pop('Gru', 100, WIKI + 'en/0/09/Gru_from_DM4.png'),
+  pop('Tom (the cat)', 6, WIKI + 'en/f/f6/Tom_Tom_and_Jerry.png'),
+  pop('Jerry (the mouse)', 0.03, WIKI + 'en/2/2f/Jerry_Mouse.png'),
+  pop('Snoopy', 12, WIKI + 'en/5/53/Snoopy_Peanuts.png'),
+  pop('Winnie-the-Pooh', 0.5, THUMB + 'commons/thumb/3/3e/Pooh_Shepard1928.jpg/330px-Pooh_Shepard1928.jpg', {card: true}),
+  pop('Jake the Dog', 20, THUMB + 'commons/thumb/d/d8/Jake_the_Dog_character.svg/330px-Jake_the_Dog_character.svg.png'),
+  pop('Mr. Krabs', 3, WIKI + 'commons/c/ce/Mr_Krabs_character.png'),
+  pop('Sandy Cheeks', 0.5, THUMB + 'commons/thumb/9/95/Sandy_Cheeks_%28transparent%29.png/330px-Sandy_Cheeks_%28transparent%29.png'),
+  pop('Plankton', 0.000001, THUMB + 'en/thumb/4/49/Plankton_and_Karen.svg/330px-Plankton_and_Karen.svg.png'),
+  pop('Bart Simpson', 38, WIKI + 'en/a/aa/Bart_Simpson_200px.png'),
+  pop('Peter Griffin', 130, WIKI + 'en/c/c2/Peter_Griffin.png'),
+  pop('Rick Sanchez', 70, WIKI + 'en/a/a6/Rick_Sanchez.png'),
+  pop('Kermit the Frog', 0.5, THUMB + 'commons/thumb/7/74/Kermit_puppet.jpg/330px-Kermit_puppet.jpg', {card: true}),
+  pop('Elmo', 1, THUMB + 'commons/thumb/a/ac/Elmo.jpg/330px-Elmo.jpg', {card: true}),
+  pop('Cookie Monster', 2, WIKI + 'en/5/5e/Cisforcookie.jpg', {card: true}),
+  pop('Luigi', 70, WIKI + 'en/b/be/Luigi_by_Shigehisa_Nakaue.png'),
+  pop('Princess Peach', 55, WIKI + 'en/1/16/Princess_Peach_Stock_Art.png'),
+  pop('Toad', 15, WIKI + 'en/b/b9/Toad_by_Shigehisa_Nakaue.png'),
+  pop('Yoshi', 50, WIKI + 'en/d/db/Yoshi_%28Nintendo_character%29.png'),
+  pop('Bowser', 900, THUMB + 'en/thumb/d/d1/Bowser_by_Shigehisa_Nakaue.png/330px-Bowser_by_Shigehisa_Nakaue.png'),
+  pop('Wario', 100, WIKI + 'en/8/81/Wario.png'),
+  pop('Donkey Kong', 200, WIKI + 'en/d/d4/Donkey_Kong_character.png'),
+  pop('Link', 60, WIKI + 'en/9/9d/Link_%28Hyrule_Historia%29.png'),
+  pop('Samus (in her suit)', 90, WIKI + 'en/d/d6/Samus_Aran.png', {est: false, note: '198 lb, per Nintendo'}),
+  pop('Isabelle', 8, WIKI + 'en/2/26/Isabelle_AF.png'),
+  pop('Tom Nook', 15, WIKI + 'en/7/72/Tom_Nook.png'),
+  pop('Steve from Minecraft', 70, WIKI + 'en/e/e7/Steve_%28Minecraft%29.png'),
+  pop('A Creeper', 50, WIKI + 'commons/a/a9/Minecraft_Creeper_%28Crop%29.png'),
+  pop('Master Chief', 454, WIKI + 'en/4/42/Master_chief_halo_infinite.png', {est: false, note: '1,000 lb in armor, per Halo'}),
+  pop('Kratos', 130, WIKI + 'en/2/2f/Kratos_PS4.png'),
+  pop('Lara Croft', 55, WIKI + 'en/a/a8/LaraCroftInfobox.png'),
+  pop('Crash Bandicoot', 30, WIKI + 'en/a/a3/IAT_Crash_Bandicoot.png'),
+  pop('Knuckles', 40, THUMB + 'en/thumb/0/06/Knuckles_the_Echidna.png/330px-Knuckles_the_Echidna.png'),
+  pop('Shadow the Hedgehog', 35, WIKI + 'en/4/41/ShadowTheHedgehogSA2.png'),
+  pop('Dr. Eggman', 128, THUMB + 'en/thumb/7/72/Doctor_EggmanSDT.png/330px-Doctor_EggmanSDT.png'),
+  pop('Ash Ketchum', 43, WIKI + 'en/e/e4/Ash_Ketchum_Journeys.png'),
+  pop('Goku', 62, WIKI + 'en/4/4c/GokumangaToriyama.png', {est: false, note: 'per the Dragon Ball guidebooks'}),
+  pop('Naruto', 50.9, WIKI + 'en/9/9a/NarutoUzumaki.png', {est: false, note: 'per the Naruto databook'}),
+  pop('Luffy', 64, WIKI + 'en/c/cb/Monkey_D_Luffy.png'),
+  pop('Doraemon', 129.3, WIKI + 'en/b/bd/Doraemon_character.png', {est: false, note: 'official profile'}),
+  pop('Yoda', 17, WIKI + 'en/9/9b/Yoda_Empire_Strikes_Back.png'),
+  pop('Chewbacca', 112, WIKI + 'en/f/f1/Chewbacca.png', {est: false, note: 'per the Star Wars Databank'}),
+  pop('BB-8', 18, WIKI + 'en/3/39/BB-8%2C_Star_Wars_The_Force_Awakens.jpg', {card: true}),
+  pop('A stormtrooper', 85, THUMB + 'commons/thumb/e/e9/Stormtroopers_at_Galaxy%E2%80%99s_Edge_%28cropped%29.jpg/330px-Stormtroopers_at_Galaxy%E2%80%99s_Edge_%28cropped%29.jpg', {card: true}),
+  pop('The USS Enterprise', 4.5e9, THUMB + 'en/thumb/5/58/Enterprise_Forward.jpg/330px-Enterprise_Forward.jpg', {card: true, est: false, note: '4.5 million tonnes, per Star Trek'}),
+  pop('The TARDIS', 2000, THUMB + 'commons/thumb/1/1a/Tardis_in_Snow.jpg/330px-Tardis_in_Snow.jpg', {card: true, note: 'from the outside, anyway'}),
+  pop('The DeLorean time machine', 1230, THUMB + 'commons/thumb/0/0f/DeLorean_Replica_Kovacs_Time_Machine.png/330px-DeLorean_Replica_Kovacs_Time_Machine.png', {est: false}),
+  pop('The One Ring', 0.01, THUMB + 'commons/thumb/d/d4/One_Ring_Blender_Render.png/330px-One_Ring_Blender_Render.png'),
+  pop('Gollum', 25, THUMB + 'commons/thumb/4/4a/Gollum_at_Wellington_Airport.jpg/330px-Gollum_at_Wellington_Airport.jpg', {card: true}),
+  pop('King Kong', 50000, THUMB + 'commons/thumb/3/30/King_Kong_1933_Promotional_Image.png/330px-King_Kong_1933_Promotional_Image.png', {card: true}),
+  pop('Mothra', 1.5e7, THUMB + 'commons/thumb/9/9c/Mosura_trailer_-_Mothra_flying_%28cropped%29.png/330px-Mosura_trailer_-_Mothra_flying_%28cropped%29.png', {est: false, note: '15,000 tonnes, per Toho'}),
+  pop('The Gundam RX-78-2', 60000, WIKI + 'en/d/d6/RX-78-2_Gundam_illustration.gif', {card: true, est: false, note: '60 tonnes fully loaded, per Sunrise'}),
+  pop('Bumblebee', 1600, WIKI + 'en/0/08/Bumblebee_IDW.jpg', {card: true}),
+  pop('Optimus Prime (toy)', 0.6, WIKI + 'en/b/b2/Optimusprime-originaltoy.jpg', {card: true}),
+  pop('Nyan Cat', 4, WIKI + 'en/e/ed/Nyan_cat_250px_frame.PNG', {card: true}),
+  pop('Doge', 14, THUMB + 'commons/thumb/b/be/Doge_meme_example.jpg/330px-Doge_meme_example.jpg', {card: true}),
+  pop('A Tamagotchi', 0.05, THUMB + 'commons/thumb/f/f2/Tamagotchi_0124_ubt.jpeg/330px-Tamagotchi_0124_ubt.jpeg', {card: true, est: false}),
+  // more Pokémon (weights checked against PokéAPI)
+  poke('Wobbuffet', 28.5, 202), poke('Ditto', 4, 132), poke('Meowth', 4.2, 52), poke('Slowpoke', 36, 79),
+  poke('Vulpix', 9.9, 37), poke('Ninetales', 19.9, 38), poke('Arcanine', 155, 59), poke('Alakazam', 48, 65),
+  poke('Golem', 300, 76), poke('Cubone', 6.5, 104), poke('Chansey', 34.6, 113), poke('Kangaskhan', 80, 115),
+  poke('Scyther', 56, 123), poke('Lugia', 216, 249), poke('Ho-Oh', 199, 250), poke('Kyogre', 352, 382),
+  poke('Rayquaza', 206.5, 384), poke('Giratina', 750, 487), poke('Dialga', 683, 483), poke('Palkia', 336, 484),
+  poke('Arceus', 320, 493), poke('Greninja', 40, 658), poke('Sylveon', 23.5, 700), poke('Mimikyu', 0.7, 778),
+  poke('Pichu', 2, 172), poke('Torchic', 2.5, 255), poke('Mudkip', 7.6, 258), poke('Treecko', 5, 252),
+  poke('Piplup', 5.2, 393), poke('Chimchar', 6.2, 390), poke('Turtwig', 10.2, 387), poke('Garchomp', 95, 445),
+  poke('Tyranitar', 202, 248), poke('Blastoise', 85.5, 9), poke('Venusaur', 100, 3), poke('Clefairy', 7.5, 35),
+  poke('Zubat', 7.5, 41), poke('Geodude', 20, 74), poke('Vaporeon', 29, 134), poke('Jolteon', 24.5, 135),
+  poke('Flareon', 25, 136), poke('Umbreon', 27, 197), poke('Espeon', 26.5, 196), poke('Sobble', 4, 816),
+  poke('Scorbunny', 4.5, 813), poke('Grookey', 5, 810), poke('Eternatus', 950, 890), poke('Guzzlord', 888, 799),
+  poke('Articuno', 55.4, 144), poke('Zapdos', 52.6, 145), poke('Moltres', 60, 146), poke('Dratini', 3.3, 147), poke('Darkrai', 50.5, 491),
+  // more everyday things
+  thing('A duck', 1.2, '1f986'), thing('An octopus', 15, '1f419'), thing('A shark', 1000, '1f988'), thing('A crocodile', 500, '1f40a'),
+  thing('A rhino', 2300, '1f98f'), thing('A lion', 190, '1f981'), thing('A tiger', 220, '1f405'), thing('A pig', 100, '1f416'),
+  thing('A cow', 700, '1f404'), thing('A horse', 500, '1f40e'), thing('A chicken', 2.5, '1f414'), thing('A frog', 0.02, '1f438'),
+  thing('A snail', 0.005, '1f40c'), thing('A butterfly', 0.0005, '1f98b'), thing('A spider', 0.001, '1f577'), thing('A ladybug', 0.00002, '1f41e'),
+  thing('A sloth', 5, '1f9a5'), thing('A panda', 100, '1f43c'), thing('A koala', 9, '1f428'), thing('A kangaroo', 85, '1f998'),
+  thing('A hedgehog', 0.8, '1f994'), thing('An owl', 1.5, '1f989'), thing('A flamingo', 3, '1f9a9'), thing('A brontosaurus', 50000, '1f995'),
+  thing('A woolly mammoth', 6000, '1f9a3'), thing('A bison', 900, '1f9ac'), thing('An apple', 0.18, '1f34e'), thing('A donut', 0.07, '1f369'),
+  thing('A birthday cake', 2, '1f382'), thing('A cup of coffee', 0.35, '2615'), thing('A jack-o\'-lantern', 6, '1f383'), thing('A basketball', 0.62, '1f3c0'),
+  thing('A soccer ball', 0.43, '26bd'), thing('A bus', 12000, '1f68c'), thing('A steam locomotive', 200000, '1f682'), thing('A helicopter', 5000, '1f681'),
+  thing('A motorcycle', 200, '1f3cd'), thing('A skateboard', 3, '1f6f9'), thing('An umbrella', 0.5, '2602'), thing('A crown', 1.1, '1f451'),
+  thing('A diamond', 0.0002, '1f48e'), thing('A toilet', 40, '1f6bd'), thing('A bathtub', 150, '1f6c1'), thing('A couch', 80, '1f6cb'),
+  thing('A castle', 2e8, '1f3f0'), thing('Tokyo Tower', 4e6, '1f5fc'), thing('Mount Fuji', 3.6e15, '1f5fb'), thing('A volcano', 1e13, '1f30b'),
+  thing('A fluffy cloud', 500000, '2601'), thing('A snowflake', 0.000003, '2744'), thing('An ice cube', 0.03, '1f9ca'), thing('A loaf of bread', 0.5, '1f35e'),
+  thing('A tent', 5, '26fa'), thing('A Ferris wheel', 2.1e6, '1f3a1'), thing('A sailboat', 3000, '26f5'), thing('A robot', 100, '1f916'),
+  thing('A ghost', 0.021, '1f47b'), thing('A unicorn', 500, '1f984'), thing('A dragon', 10000, '1f409'), thing('A human brain', 1.4, '1f9e0'),
+  thing('A UFO', 10000, '1f6f8'), thing('An alien', 30, '1f47d'), thing('A shopping cart', 15, '1f6d2'), thing('A teapot', 1, '1fad6'),
+  // space — real masses
+  ...Object.entries({
+    'Mercury': [3.301e23, 'mercury'], 'Venus': [4.867e24, 'venus'], 'Mars': [6.417e23, 'mars'], 'Jupiter': [1.898e27, 'jupiter'],
+    'Saturn': [5.683e26, 'saturn', false], 'Uranus': [8.681e25, 'uranus'], 'Neptune': [1.024e26, 'neptune'], 'Pluto': [1.303e22, 'pluto'],
+    'Ceres': [9.38e20, 'ceres'], 'Io': [8.93e22, 'io'], 'Europa': [4.8e22, 'europa'], 'Ganymede': [1.482e23, 'ganymede'],
+    'Callisto': [1.076e23, 'callisto'], 'Titan': [1.345e23, 'titan'], 'Enceladus': [1.08e20, 'enceladus'], 'Triton': [2.14e22, 'triton'],
+    'Phobos': [1.066e16, 'phobos'], 'Vesta': [2.59e20, 'vesta'], 'Asteroid Bennu': [7.33e10, 'bennu'],
+    'Sagittarius A* (black hole)': [8.26e36, 'sgra'], 'The M87 black hole': [1.29e40, 'm87bh'],
+  }).map(([n, [kg, k, round = true]]) => ({n, kg, src: SPACE[k], round, card: !round})),
+  ...Object.entries({
+    "Halley's Comet": [2.2e14, 'halley'], 'The International Space Station': [419725, 'iss'], 'The Hubble Space Telescope': [11110, 'hubble'],
+    'The Curiosity rover': [899, 'curiosity'], 'A SpaceX Starship': [5e6, 'starship'], 'The Apollo Lunar Module': [15200, 'lm'],
+    "Elon Musk's Tesla Roadster": [1305, 'roadster'], 'Laika the space dog': [6, 'laika'], 'The Andromeda Galaxy': [3e42, 'andromeda'],
+    'The Whirlpool Galaxy': [3e41, 'whirlpool'], 'The Crab Nebula': [9e30, 'crab'], 'The Orion Nebula': [4e33, 'orion'], 'The Pillars of Creation': [4e32, 'pillars'],
+  }).map(([n, [kg, k]]) => ({n, kg, src: SPACE[k], card: true, est: kg > 1e30})),
+  {n: 'The Voyager 1 probe', kg: 825.5, src: SPACE.voyager}, {n: 'The James Webb Space Telescope', kg: 6161, src: SPACE.jwst},
+];
+
+const imgCache = {};
+function img(src) {
+  if (!imgCache[src]) { const im = new Image(); im.decoding = 'async'; im.onload = () => im.ok = true; im.onerror = () => im.bad = true; im.src = src; imgCache[src] = im; }
+  return imgCache[src];
+}
+
+// ---------- the world: one zone per stretch of log-distance ----------
+const Z = [
+  {at: -99, name: 'The Backyard', sky: ['#5EC2FF', '#CFF0FF'], gr: '#5ED36A', hl: '#3FB45A', far: 'hills', p: ['1f333', '1f333', '1f332', '1f33c', '1f415', '1f3a1']},
+  {at: 2, name: 'Suburbia', sky: ['#62B8FF', '#D8F1FF'], gr: '#74D35E', hl: '#4DB860', far: 'hills', p: ['1f3e0', '1f3e1', '1f3e0', '1f697', '1f333', '1f6b2']},
+  {at: 3, name: 'Downtown', sky: ['#6AA8FF', '#FFE0C7'], gr: '#8E97AE', hl: '#6B7392', far: 'city', p: ['1f3e2', '1f3ec', '1f3e8', '1f3e2', '1f695', '1f68c']},
+  {at: 4, name: 'Farm country', sky: ['#62C0FF', '#EAF7C8'], gr: '#B9D857', hl: '#8DBE4C', far: 'hills', p: ['1f69c', '1f404', '1f416', '1f33d', '1f33e', '1f411']},
+  {at: 5, name: 'The desert', sky: ['#FF9F5A', '#FFE7A3'], gr: '#F4C96B', hl: '#E2A24C', far: 'dunes', p: ['1f335', '1f335', '1f42a', '1f3dc', '1f982', '1f335']},
+  {at: 6, name: 'Open ocean', sky: ['#3FA9FF', '#BDEAFF'], gr: '#2E8FE0', hl: '#1F70C4', far: 'none', p: ['26f5', '1f6a2', '1f433', '1f42c', '1f3dd', '26f5']},
+  {at: 7, name: 'The frozen north', sky: ['#8EBEFF', '#EEF8FF'], gr: '#F2FAFF', hl: '#C5DAF0', far: 'peaks', p: ['1f427', '26c4', '1f332', '1f3d4', '1f427', '1f9ca']},
+  {at: 7.6, name: 'Lapped Earth — going up', sky: ['#27408F', '#86B6FF'], air: true, p: ['2601', '2708', '1f388', '1fa82', '2601', '1f681']},
+  {at: 8.3, name: 'Near the Moon', sky: ['#0D0D2E', '#22225A'], air: true, p: [SPACE.moon, '1f6f0', SPACE.iss, '1f9d1-200d-1f680', '1f680']},
+  {at: 9.6, name: 'Mars and its moons', sky: ['#1A0B1E', '#3D1530'], air: true, p: [SPACE.mars, SPACE.phobos, '1f6f8', '1f47d', '1f680']},
+  {at: 11.3, name: 'The asteroid belt', sky: ['#0E0B1A', '#2A2238'], air: true, p: ['1faa8', '1faa8', SPACE.ceres, SPACE.vesta, SPACE.bennu, '1faa8']},
+  {at: 11.8, name: 'Jupiter and Saturn', sky: ['#120A08', '#3A2416'], air: true, p: [SPACE.jupiter, SPACE.io, SPACE.europa, SPACE.saturn, SPACE.titan, SPACE.ganymede, SPACE.enceladus]},
+  {at: 12.4, name: 'The ice giants', sky: ['#04121E', '#0E3550'], air: true, p: [SPACE.uranus, SPACE.neptune, SPACE.triton, '1f9ca']},
+  {at: 12.75, name: 'Pluto and the Kuiper belt', sky: ['#0B0A14', '#24203A'], air: true, p: [SPACE.pluto, SPACE.arrokoth, '1f9ca', '1faa8', SPACE.voyager]},
+  {at: 14, name: 'The Oort cloud', sky: ['#05060F', '#14183A'], air: true, p: ['1f9ca', SPACE.halley, '2728', '1f9ca']},
+  {at: 16.3, name: 'The nearest stars', sky: ['#05040F', '#160B33'], air: true, p: ['2b50', '1f31f', '2728', SPACE.jwst]},
+  {at: 17.5, name: 'The Milky Way', sky: ['#12052B', '#3A1257'], air: true, p: [SPACE.orion, SPACE.pillars, SPACE.crab, '1f47d', '1f6f8', '2728']},
+  {at: 20.2, name: 'The galactic core', sky: ['#1F0A05', '#4A1A0A'], air: true, p: [SPACE.sgra, '1f31f', '2728', '2b50']},
+  {at: 21.2, name: 'Between galaxies', sky: ['#000000', '#0A0A1E'], air: true, p: [SPACE.andromeda, SPACE.whirlpool, '1f300', '1f6f8', '2728']},
+  {at: 23.5, name: 'The cosmic web', sky: ['#05001A', '#1B0B3A'], air: true, p: [SPACE.m87bh, SPACE.whirlpool, '1f300', '2728', SPACE.andromeda]},
+  {at: 26.94, name: 'Outside the observable universe', sky: ['#FF4F7B', '#FFD23F'], air: true, p: ['1f984', '1f308', '1f369', '1f986', '1f9c0', '1f47e']},
+  {at: 32, name: 'The multiverse', sky: ['#2A0F5C', '#16B8A6'], air: true, p: ['1f300', '1f30c', '1f984', '1fa90', '1f308', '1f52e']},
+  {at: 40, name: 'Where cartoons go when they fly too far', sky: ['#7CF2C9', '#FFF27A'], air: true, p: [SPACE.nyan, '1f984', '1f308', '1f369', '1f9c1', '1f36d']},
+];
+const zoneIdx = lg => { let i = 0; while (i < Z.length - 1 && lg >= Z[i + 1].at) i++; return i; };
+
+// ---------- helpers ----------
+const $ = id => document.getElementById(id);
+const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+const lerp = (a, b, t) => a + (b - a) * t;
+const sstep = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+const rnd = (k, s) => { const x = Math.sin(k * 127.1 + s * 311.7) * 43758.5453; return x - Math.floor(x); };
+const hex = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+const mix = (a, b, t) => { const A = hex(a), B = hex(b); return `rgb(${A.map((v, i) => Math.round(lerp(v, B[i], t))).join()})`; };
+const easeBack = k => { const c = 1.70158; return 1 + (c + 1) * (k - 1) ** 3 + c * (k - 1) ** 2; };
+const compact = new Intl.NumberFormat('en', {notation: 'compact', maximumFractionDigits: 1});
+
+function fmtNum(x) {
+  if (x < 10) return String(+x.toFixed(1));
+  if (x < 1e15) return compact.format(x);
+  return `10<sup>${Math.round(Math.log10(x))}</sup>`;
+}
+function sci(x) { const e = Math.floor(Math.log10(x)); return `${+(x / 10 ** e).toFixed(2)} × 10<sup>${e}</sup>`; }
+function fmtKg(kg) {
+  if (kg < 0.001) return `${+(kg * 1e6).toPrecision(3)} mg`;
+  if (kg < 1) return `${+(kg * 1000).toPrecision(3)} g`;
+  if (kg < 1000) return `${kg.toLocaleString('en')} kg`;
+  if (kg < 1e9) return `${(kg / 1000).toLocaleString('en', {maximumFractionDigits: 1})} tonnes`;
+  return `${sci(kg)} kg`;
+}
+function fmtDist(d) {
+  if (d < 10) return `${d.toFixed(1)} m`;
+  if (d < 1000) return `${Math.round(d)} m`;
+  if (d < 1.496e11) return `${(d / 1000).toLocaleString('en', {maximumFractionDigits: d < 1e4 ? 1 : 0})} km`;
+  if (d < 9.461e15) return `${fmtNum(d / 1.496e11)} AU`;
+  return `${fmtNum(d / 9.461e15)} light-years`;
+}
+const MARKS = [
+  [105, 'a football field', 'football fields'], [330, 'an Eiffel Tower, laid flat', 'Eiffel Towers, laid flat'],
+  [8849, 'a Mount Everest, sideways', 'Mount Everests, sideways'], [40075e3, 'a lap around Earth', 'laps around Earth'],
+  [3.844e8, 'a trip to the Moon', 'trips to the Moon'], [1.496e11, 'a trip to the Sun', 'trips to the Sun'],
+  [6.29e11, 'a trip to Jupiter', 'trips to Jupiter'], [5.9e12, 'a trip to Pluto', 'trips to Pluto'],
+  [9.461e15, 'one light-year', 'light-years'], [4.0e16, 'a trip to the nearest star', 'trips to the nearest star'],
+  [1e21, 'the Milky Way, end to end', 'Milky Ways, end to end'], [2.4e22, 'a trip to Andromeda', 'trips to Andromeda'],
+  [8.8e26, 'the whole observable universe', 'observable universes'],
+];
+function landmark(d) {
+  let m = null; for (const k of MARKS) if (d >= k[0]) m = k;
+  if (!m) return 'It barely cleared the seesaw.';
+  const x = d / m[0];
+  return x < 1.5 ? `That's about ${m[1]}.` : `That's about ${fmtNum(x)} ${m[2]}.`;
+}
+
+// ---------- canvas & layout ----------
+const cv = $('c'), ctx = cv.getContext('2d');
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+let W, H, G, S, L, PX, PY;
+const PXD = 1600;           // screen pixels per decade of distance
+const STARS = Array.from({length: 160}, (_, i) => [rnd(i, 1), rnd(i, 2), 0.6 + rnd(i, 3) * 1.8]);
+function resize() {
+  const dpr = Math.min(2, devicePixelRatio || 1);
+  W = innerWidth; H = innerHeight;
+  cv.width = W * dpr; cv.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  G = H * 0.8; S = clamp(Math.min(W, H) * 0.18, 70, 135); L = Math.min(W * 0.82, 640);
+  PX = W / 2; PY = G - 62;
+}
+addEventListener('resize', resize); resize();
+
+// ---------- game state ----------
+let st = 'choose', t0 = 0, pair, heavy, light, correct, ang = 0, fl = null, camX = 0, camY = 0;
+let thud = null, trail = [], streak = 0, total = 0, lastPair = [], zoneShown = -1, cardShown = false;
+
+function newPair() {
+  let a, b, n = 0;
+  const close = Math.random() < 0.5;   // half the rounds are a closer (harder) call
+  const ok = () => a !== b && !img(a.src).bad && !img(b.src).bad && !lastPair.includes(a) && !lastPair.includes(b) &&
+    Math.abs(Math.log10(a.kg / b.kg)) > 0.03 && (!close || Math.abs(Math.log10(a.kg / b.kg)) < 1.3);
+  do { a = ITEMS[Math.random() * ITEMS.length | 0]; b = ITEMS[Math.random() * ITEMS.length | 0]; } while (!ok() && ++n < 500);
+  lastPair = [a, b]; pair = [a, b];
+  pair.forEach((it, i) => { img(it.src); const btn = $('pick' + i); btn.textContent = it.n; btn.setAttribute('aria-label', `${it.n} is lighter`); });
+}
+
+function plankEnd(side, a) {
+  const dx = (side ? 1 : -1) * (L / 2 - S * 0.42);
+  return {x: PX + dx * Math.cos(a), y: PY + dx * Math.sin(a) - 9 - S / 2};
+}
+
+function choose(side) {
+  if (st !== 'choose') return;
+  heavy = pair[0].kg > pair[1].kg ? 0 : 1; light = 1 - heavy; correct = side === light;
+  st = 'drop'; t0 = performance.now();
+  setUI();
+}
+
+function launch(now) {
+  const e = plankEnd(light, ang);
+  const ratio = pair[heavy].kg / pair[light].kg;
+  const D = 30 * ratio ** 1.1;                 // exaggerated on purpose
+  const lg = Math.log10(D + 1);
+  fl = {ex: e.x, h0: G - S / 2 - e.y, D, lg, ratio, cur: 0, rot: 0,
+    T: Math.min(21000, 2600 + lg * 520) * (reduced ? 0.6 : 1), t0: now,
+    space: lg > Z[7].at, arcH: H * 0.33 + Math.min(lg, 7.6) * H * 0.06, spin: 7 + lg * 0.5, x: e.x, h: 0};
+  trail = []; zoneShown = -1; st = 'fly'; setUI();
+}
+
+function nextRound() {
+  const f = $('fade'); f.style.opacity = 1;
+  setTimeout(() => {
+    st = 'choose'; fl = null; camX = camY = 0; ang = 0; trail = []; thud = null; cardShown = false;
+    newPair(); setUI(); f.style.opacity = 0; $('pick0').focus({preventScroll: true});
+  }, 190);
+}
+
+function showCard() {
+  cardShown = true;
+  const H_ = pair[heavy], Lt = pair[light];
+  if (correct) { streak++; total += fl.D; } else streak = 0;
+  $('card').className = 'sticker' + (correct ? '' : ' wrong');
+  $('cEye').textContent = correct ? 'Correct!' : 'Not quite';
+  $('cHead').innerHTML = correct ? `${Lt.n} flew ${fmtDist(fl.D)}` : `${H_.n} is the heavy one`;
+  $('cBody').innerHTML = correct ? landmark(fl.D)
+    : `${Lt.n} still flew ${fmtDist(fl.D)}, but picks only count when you choose the lighter one. Streak reset.`;
+  const row = it => `<span>${it.n}</span><b>${it.est ? '≈ ' : ''}${fmtKg(it.kg)}</b>`;
+  const notes = [H_, Lt].filter(it => it.note).map(it => `${it.n}: ${it.note}`);
+  if ([H_, Lt].some(it => it.est)) notes.push('≈ fan estimate');
+  $('cScale').innerHTML = row(H_) + row(Lt) +
+    `<span>${H_.n} is</span><b>${fmtNum(fl.ratio)}× heavier</b>` +
+    (notes.length ? `<span class="note">${notes.join(' · ')}</span>` : '');
+  $('sStreak').textContent = streak;
+  $('sTotal').innerHTML = total ? fmtDist(total) : '0 m';
+  setUI();
+  $('next').focus({preventScroll: true});
+}
+
+function setUI() {
+  $('ask').hidden = st !== 'choose';
+  $('pick0').hidden = $('pick1').hidden = st !== 'choose';
+  $('odo').hidden = !(st === 'fly' || st === 'land');
+  $('skip').hidden = st !== 'fly';
+  $('card').hidden = !cardShown;
+}
+
+$('pick0').onclick = () => choose(0);
+$('pick1').onclick = () => choose(1);
+$('next').onclick = nextRound;
+$('skip').onclick = () => { if (fl) fl.t0 = performance.now() - fl.T; };
+addEventListener('keydown', e => {
+  if (st === 'choose' && (e.key === 'ArrowLeft' || e.key === '1')) choose(0);
+  if (st === 'choose' && (e.key === 'ArrowRight' || e.key === '2')) choose(1);
+});
+
+// ---------- update ----------
+let prev = performance.now();
+function update(now) {
+  const dt = Math.min(0.05, (now - prev) / 1000); prev = now;
+  if (st === 'drop' && now - t0 > 340) { st = 'slam'; t0 = now; thud = {t: now, side: heavy}; }
+  if (st === 'slam') {
+    const k = Math.min(1, (now - t0) / 280);
+    ang = (heavy ? 1 : -1) * 0.3 * easeBack(k);
+    if (k >= 1) launch(now);
+  }
+  if (st === 'fly' || st === 'land') {
+    const p = Math.min(1, (now - fl.t0) / fl.T);
+    const u = 1 - (1 - p) ** 3;
+    fl.cur = fl.lg * u;
+    const travel = fl.cur * PXD;
+    const rise = sstep(6.9, 8.3, fl.cur) * H * 2.5;
+    if (st === 'fly') {
+      fl.h = fl.space
+        ? fl.h0 * (1 - p) + fl.arcH * Math.sin(Math.min(1, p * 2) * Math.PI / 2) + rise
+        : fl.h0 * (1 - p) + fl.arcH * 4 * p * (1 - p);
+      fl.rot += fl.spin * dt * (1 - p * 0.7);
+      const sx = lerp(fl.ex, W * 0.36, sstep(0, W * 0.5, travel));
+      fl.x = fl.ex + travel; camX = fl.x - sx;
+      camY = Math.max(0, fl.h - Math.max(H * 0.18, G - S / 2 - H * 0.6));   // keep the flyer below the odometer
+      trail.push([fl.x, fl.h]); if (trail.length > 28) trail.shift();
+      if (p >= 1) { st = 'land'; fl.landT = now; fl.rot0 = fl.rot; }
+    } else {
+      const k = Math.min(1, (now - fl.landT) / 900);
+      const target = Math.round(fl.rot0 / (2 * Math.PI)) * 2 * Math.PI;
+      fl.rot = lerp(fl.rot0, target, 1 - (1 - k) ** 3);
+      if (fl.space) { fl.x += 40 * dt; fl.bob = Math.sin(now / 500) * 10; }
+      else fl.h = Math.abs(Math.sin(k * Math.PI * 2.5)) * (1 - k) * 60;
+      if (trail.length) trail.shift();
+      if (now - fl.landT > 1150 && !cardShown) showCard();
+    }
+    const zi = zoneIdx(fl.cur);
+    $('odoNum').innerHTML = fmtDist(st === 'land' ? fl.D : 10 ** fl.cur - 1);
+    if (zi !== zoneShown) {
+      zoneShown = zi; const z = $('zone');
+      z.textContent = 'Now passing · ' + Z[zi].name;
+      z.classList.remove('flash'); void z.offsetWidth; z.classList.add('flash');
+    }
+  }
+}
+
+// ---------- draw ----------
+const LX = () => fl ? fl.ex : PX + L / 2;
+const logAt = wx => (wx - LX()) / PXD;
+
+const soft = {};   // space photos with their edges faded out, so they don't show as rectangles
+function feathered(im) {
+  if (!soft[im.src]) {
+    const c = document.createElement('canvas'), w = c.width = im.naturalWidth, h = c.height = im.naturalHeight, x = c.getContext('2d');
+    x.drawImage(im, 0, 0);
+    const g = x.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.3, w / 2, h / 2, Math.max(w, h) * 0.5);
+    g.addColorStop(0, '#000'); g.addColorStop(1, 'rgba(0,0,0,0)');
+    x.globalCompositeOperation = 'destination-in'; x.fillStyle = g; x.fillRect(0, 0, w, h);
+    soft[im.src] = c;
+  }
+  return soft[im.src];
+}
+function drawImg(src, x, y, size, alpha = 1, blend = 'source-over') {   // centered prop, fit into size×size
+  let im = img(src); if (!im.ok) return;
+  if (blend === 'screen') im = feathered(im);
+  const iw = im.naturalWidth || im.width || 1, ih = im.naturalHeight || im.height || 1, c = size / Math.max(iw, ih);
+  ctx.globalAlpha = alpha; ctx.globalCompositeOperation = blend;
+  try { ctx.drawImage(im, x - iw * c / 2, y - ih * c / 2, iw * c, ih * c); } catch (e) {}
+  ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+}
+
+function rr(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); }
+
+function drawItem(it, x, y, rot = 0) {
+  const im = img(it.src);
+  ctx.save(); ctx.translate(x, y); ctx.rotate(rot);
+  if (!im.ok) {
+    ctx.fillStyle = '#fff'; ctx.strokeStyle = '#24163A'; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.arc(0, 0, S * 0.4, 0, 7); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#24163A'; ctx.font = `${S * 0.35}px 'Lilita One'`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('?', 0, 2);
+  } else if (it.round) {
+    const r = S * 0.47, iw = im.naturalWidth, ih = im.naturalHeight, c = Math.max(2 * r / iw, 2 * r / ih) * 1.04;
+    ctx.fillStyle = '#24163A'; ctx.beginPath(); ctx.arc(0, 6, r, 0, 7); ctx.fill();
+    ctx.save(); ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.clip(); ctx.fillStyle = '#000'; ctx.fill();
+    ctx.drawImage(im, -iw * c / 2, -ih * c / 2, iw * c, ih * c); ctx.restore();
+    ctx.strokeStyle = '#24163A'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.stroke();
+  } else if (it.card) {
+    const s = S * 0.92, iw = im.naturalWidth, ih = im.naturalHeight, c = Math.max(s / iw, s / ih);
+    ctx.fillStyle = '#24163A'; rr(-s / 2, -s / 2 + 6, s, s, 18); ctx.fill();
+    ctx.save(); rr(-s / 2, -s / 2, s, s, 18); ctx.clip();
+    ctx.drawImage(im, -iw * c / 2, -ih * c / 2, iw * c, ih * c); ctx.restore();
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 6; rr(-s / 2 + 5, -s / 2 + 5, s - 10, s - 10, 14); ctx.stroke();
+    ctx.strokeStyle = '#24163A'; ctx.lineWidth = 4; rr(-s / 2, -s / 2, s, s, 18); ctx.stroke();
+  } else {
+    const iw = im.naturalWidth || 1, ih = im.naturalHeight || 1, c = Math.min(S / iw, S / ih);
+    ctx.shadowColor = 'rgba(36,22,58,.35)'; ctx.shadowOffsetY = 7;
+    try { ctx.drawImage(im, -iw * c / 2, -ih * c / 2, iw * c, ih * c); } catch (e) {}
+  }
+  ctx.restore();
+}
+
+function farHeight(type, fx) {
+  if (type === 'hills') return 70 + 40 * Math.sin(fx * 0.004) + 22 * Math.sin(fx * 0.011 + 1);
+  if (type === 'dunes') return 55 + 35 * Math.sin(fx * 0.003) + 10 * Math.sin(fx * 0.009);
+  if (type === 'city') { const b = Math.floor(fx / 64); return 90 + rnd(b, 7) * 190; }
+  if (type === 'peaks') { const b = Math.floor(fx / 240), f = fx / 240 - b; return 80 + 200 * (1 - Math.abs(2 * f - 1)) * (0.5 + rnd(b, 9) * 0.5); }
+  return 0;
+}
+
+function draw(now) {
+  const view = fl ? fl.cur : 0;
+  const zi = zoneIdx(view), z = Z[zi], zn = Z[Math.min(zi + 1, Z.length - 1)];
+  const blend = zi < Z.length - 1 ? sstep(zn.at - 0.35, zn.at, view) : 0;
+  const space = sstep(7.8, 8.6, view);
+
+  ctx.save();
+  if (thud && !reduced) {
+    const age = (now - thud.t) / 1000, amp = Math.max(0, 1 - age / 0.45) * clamp(4 + Math.log10(pair[heavy].kg / pair[light].kg) * 2.5, 4, 26);
+    ctx.translate((Math.random() - 0.5) * amp, (Math.random() - 0.5) * amp);
+  }
+
+  // sky
+  const sg = ctx.createLinearGradient(0, 0, 0, H);
+  sg.addColorStop(0, mix(z.sky[0], zn.sky[0], blend)); sg.addColorStop(1, mix(z.sky[1], zn.sky[1], blend));
+  ctx.fillStyle = sg; ctx.fillRect(-30, -30, W + 60, H + 60);
+
+  // stars
+  if (space > 0) {
+    ctx.fillStyle = '#fff';
+    for (const [sx, sy, r] of STARS) {
+      ctx.globalAlpha = space * (0.5 + 0.5 * Math.sin(now / 400 + sx * 50));
+      const x = ((sx * W * 3 - camX * 0.03) % W + W) % W;
+      ctx.beginPath(); ctx.arc(x, sy * H, r, 0, 7); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // sun + clouds of the ground world
+  if (space < 1) {
+    drawImg(TW('2600'), W - 120 - camX * 0.01, 150, Math.min(110, W * 0.16), 1 - space);
+    for (let i = 0; i < 6; i++) {
+      const x = ((i * 397 - camX * 0.2) % (W + 300) + W + 300) % (W + 300) - 150;
+      drawImg(TW('2601'), x, H * (0.14 + (i % 3) * 0.08) + camY * 0.3, 80 + (i % 3) * 25, (1 - space) * 0.95);
+    }
+  }
+
+  const gy = G + camY;
+  if (gy < H + 400) {
+    // far layer
+    for (let x = -20; x < W + 20; x += 4) {
+      const zz = Z[Math.min(6, zoneIdx(logAt(x + camX)))];
+      const h = farHeight(zz.far, x + camX * 0.45);
+      if (!h) continue;
+      ctx.fillStyle = zz.hl; ctx.fillRect(x, gy - h, 5, h);
+      if (zz.far === 'peaks' && h > 170) { ctx.fillStyle = '#fff'; ctx.fillRect(x, gy - h, 5, (h - 170) * 0.8 + 8); }
+      if (zz.far === 'city' && (x / 4 | 0) % 4 === 1) { ctx.fillStyle = 'rgba(255,230,140,.55)'; for (let wy = gy - h + 14; wy < gy - 20; wy += 22) ctx.fillRect(x, wy, 6, 8); }
+    }
+    // ground strips
+    for (let x = -20; x < W + 20; x += 24) {
+      const lg = logAt(x + camX), i = Math.min(6, zoneIdx(lg)), j = Math.min(6, i + 1);
+      ctx.fillStyle = mix(Z[i].gr, Z[j].gr, i < 6 ? sstep(Z[j].at - 0.12, Z[j].at, lg) : 0);
+      ctx.fillRect(x, gy, 25, H - gy + 40);
+    }
+    ctx.fillStyle = '#24163A'; ctx.fillRect(-30, gy - 2, W + 60, 5);
+  }
+
+  // props: one slot per 150 world px, picked deterministically from that spot's zone
+  const SW = 150;
+  for (let k = Math.floor((camX - 200) / SW); k < (camX + W + 200) / SW; k++) {
+    const wx = k * SW + rnd(k, 1) * SW * 0.6, lg = logAt(wx), pz = Z[zoneIdx(lg)];
+    if (rnd(k, 4) > 0.72) continue;
+    if (lg < 0.25 && Math.abs(wx - PX) < L / 2 + 90) continue;    // keep the seesaw clear
+    const code = pz.p[(rnd(k, 2) * pz.p.length) | 0], x = wx - camX, photo = code.startsWith('http');
+    const src = photo ? code : TW(code);
+    if (!pz.air) {
+      if (gy > H + 200) continue;
+      const big = pz.far === 'city' ? 1.6 : 1, size = (46 + rnd(k, 3) * 56) * big;
+      drawImg(src, x, gy - size * 0.42, size);
+    } else {
+      // space photos are big and screen-blended so their black backgrounds melt into the sky
+      const size = photo ? 90 + rnd(k, 3) * 170 : 40 + rnd(k, 3) * 80;
+      drawImg(src, x, H * 0.1 + rnd(k, 5) * H * 0.75, size, 1, photo && pz.at < 26 ? 'screen' : 'source-over');
+    }
+  }
+
+  // seesaw
+  const sx = PX - camX, sy = PY + camY;
+  if (sx > -L && sx < W + L && sy < H + 300) {
+    ctx.lineJoin = 'round'; ctx.lineWidth = 4; ctx.strokeStyle = '#24163A';
+    ctx.fillStyle = '#FF4F7B';
+    ctx.beginPath(); ctx.moveTo(sx - 44, gy + 1); ctx.lineTo(sx + 44, gy + 1); ctx.lineTo(sx, sy); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.save(); ctx.translate(sx, sy); ctx.rotate(ang);
+    ctx.fillStyle = '#24163A'; rr(-L / 2, -9 + 5, L, 18, 9); ctx.fill();
+    ctx.fillStyle = '#F2A93B'; rr(-L / 2, -9, L, 18, 9); ctx.fill(); ctx.stroke();
+    ctx.strokeStyle = 'rgba(36,22,58,.25)'; ctx.lineWidth = 2;
+    for (let i = -2; i <= 2; i++) { ctx.beginPath(); ctx.moveTo(i * L / 5 - 20, -2); ctx.lineTo(i * L / 5 + 20, -2); ctx.stroke(); }
+    ctx.restore();
+    ctx.fillStyle = '#FFD23F'; ctx.strokeStyle = '#24163A'; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.arc(sx, sy, 8, 0, 7); ctx.fill(); ctx.stroke();
+  }
+
+  // items on / above the seesaw
+  for (const side of [0, 1]) {
+    if (fl && side === light) continue;
+    const e = plankEnd(side, ang);
+    let y = e.y;
+    if (st === 'choose') y -= S * 0.55 + 10 + Math.sin(now / 450 + side * 2) * 8;
+    if (st === 'drop') { const k = Math.min(1, (now - t0) / 340); y -= (S * 0.55 + 10) * (1 - k * k); }
+    drawItem(pair[side], e.x - camX, y + camY);
+    if (st === 'choose') {
+      const b = $('pick' + side);
+      b.style.left = (e.x) + 'px'; b.style.top = (y - S / 2 - 14) + 'px';
+    }
+  }
+
+  // thud burst
+  if (thud) {
+    const age = (now - thud.t) / 650;
+    if (age < 1) {
+      const e = plankEnd(thud.side, ang), r = clamp(50 + Math.log10(pair[heavy].kg / pair[light].kg) * 9, 55, 130) * easeBack(Math.min(1, age * 3));
+      const bx = e.x - camX + (thud.side ? 1 : -1) * S * 0.2, by = e.y + S * 0.5 + camY;
+      ctx.globalAlpha = 1 - Math.max(0, age - 0.6) / 0.4;
+      ctx.fillStyle = '#FFD23F'; ctx.strokeStyle = '#24163A'; ctx.lineWidth = 4; ctx.beginPath();
+      for (let i = 0; i < 24; i++) { const a = i / 24 * Math.PI * 2, rr2 = i % 2 ? r * 0.62 : r; ctx.lineTo(bx + Math.cos(a) * rr2 * 1.35, by + Math.sin(a) * rr2 * 0.8); }
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+      const ratio = pair[heavy].kg / pair[light].kg;
+      ctx.fillStyle = '#FF4F7B'; ctx.font = `${r * 0.42}px 'Lilita One'`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(ratio < 3 ? 'boing' : ratio < 300 ? 'THUD!' : ratio < 1e8 ? 'KA-BOOM!' : 'KRAKOOM!!', bx, by + 2);
+      ctx.globalAlpha = 1;
+    } else if (st !== 'drop' && st !== 'slam') thud = null;
+  }
+
+  // flying item + speed trail
+  if (fl) {
+    const iy = h => G - S / 2 - h + camY;
+    ctx.strokeStyle = 'rgba(255,255,255,.75)'; ctx.lineCap = 'round';
+    for (let i = 1; i < trail.length; i++) {
+      ctx.lineWidth = (i / trail.length) * S * 0.28;
+      ctx.beginPath(); ctx.moveTo(trail[i - 1][0] - camX, iy(trail[i - 1][1])); ctx.lineTo(trail[i][0] - camX, iy(trail[i][1])); ctx.stroke();
+    }
+    drawItem(pair[light], fl.x - camX, iy(fl.h) + (fl.bob || 0), fl.rot);
+  }
+  ctx.restore();
+}
+
+function frame(now) { update(now); draw(now); requestAnimationFrame(frame); }
+newPair(); setUI(); requestAnimationFrame(frame);
+</script>
+</body>
+</html>
