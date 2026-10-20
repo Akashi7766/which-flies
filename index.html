@@ -30,7 +30,8 @@ canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
 
 .pick{position:fixed;left:0;top:0;transform:translate(-50%,-100%);font:400 clamp(16px,2.2vw,22px) 'Lilita One';padding:7px 18px 9px;background:var(--pop);color:#fff;border:4px solid var(--ink);border-radius:999px;box-shadow:0 6px 0 var(--ink);cursor:pointer;white-space:nowrap;max-width:46vw;overflow:hidden;text-overflow:ellipsis;z-index:3;transition:box-shadow .08s,translate .08s}
 .pick:hover{translate:0 -3px;box-shadow:0 9px 0 var(--ink)}
-.pick:active{translate:0 4px;box-shadow:0 2px 0 var(--ink)}
+.pick:active,.pick.press{translate:0 4px;box-shadow:0 2px 0 var(--ink)}
+.demo #credit,.demo #skip{display:none!important}
 .pick:focus-visible,.btn:focus-visible{outline:4px solid var(--sun);outline-offset:3px}
 
 #odo{position:fixed;left:50%;top:clamp(76px,11vh,110px);transform:translateX(-50%);text-align:center;z-index:2;pointer-events:none}
@@ -487,7 +488,7 @@ function launch(now) {
   const D = 30 * ratio ** 1.1;                 // exaggerated on purpose
   const lg = Math.log10(D + 1);
   fl = {ex: e.x, h0: G - S / 2 - e.y, D, lg, ratio, cur: 0, rot: 0,
-    T: Math.min(21000, 2600 + lg * 520) * (reduced ? 0.6 : 1), t0: now,
+    T: Math.min(21000, 2600 + lg * 520) * (reduced ? 0.6 : 1) * demoSpeed, t0: now,
     space: lg > Z[7].at, arcH: H * 0.33 + Math.min(lg, 7.6) * H * 0.06, spin: 7 + lg * 0.5, x: e.x, h: 0};
   trail = []; zoneShown = -1; st = 'fly'; setUI();
 }
@@ -571,7 +572,7 @@ function update(now) {
       if (fl.space) { fl.x += 40 * dt; fl.bob = Math.sin(now / 500) * 10; }
       else fl.h = Math.abs(Math.sin(k * Math.PI * 2.5)) * (1 - k) * 60;
       if (trail.length) trail.shift();
-      if (now - fl.landT > 1150 && !cardShown) showCard();
+      if (now - fl.landT > cardDelay && !cardShown) showCard();
     }
     const zi = zoneIdx(fl.cur);
     $('odoNum').innerHTML = fmtDist(st === 'land' ? fl.D : 10 ** fl.cur - 1);
@@ -785,6 +786,34 @@ function draw(now) {
 
 function frame(now) { update(now); draw(now); requestAnimationFrame(frame); }
 newPair(); setUI(); requestAnimationFrame(frame);
+
+// ---------- hidden demo mode: ?demo plays three scripted launches ----------
+// Inside an OBS browser source (control level "All") it also starts and stops the recording, so the clip is exactly 30 s.
+var demoSpeed = 1, cardDelay = 1150;
+if (new URLSearchParams(location.search).has('demo')) runDemo();
+async function runDemo() {
+  const SHOTS = [['A banana', 'The Hulk', 0.6], ['Kirby', 'Godzilla Earth', 0.55], ['Pikachu', 'TON 618, a monster black hole', 0.5]];
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const shots = SHOTS.map(([a, b, s]) => [ITEMS.find(i => i.n === a), ITEMS.find(i => i.n === b), s]);
+  const show = ([a, b]) => { pair = [a, b]; pair.forEach((it, i) => { img(it.src); $('pick' + i).textContent = it.n; }); };
+  document.body.classList.add('demo'); cardDelay = 700;
+  shots.forEach(show); show(shots[0]);
+  await sleep(2500);                                   // pictures load, OBS settles
+  const obs = window.obsstudio; if (obs && obs.startRecording) obs.startRecording();
+  const start = performance.now();
+  for (let k = 0; k < shots.length; k++) {
+    if (k) { newPair = () => show(shots[k]); nextRound(); await sleep(250); }
+    await sleep(k ? 800 : 1000);
+    demoSpeed = shots[k][2];
+    const li = shots[k][0].kg < shots[k][1].kg ? 0 : 1, btn = $('pick' + li);
+    btn.classList.add('press'); await sleep(160); btn.classList.remove('press');
+    choose(li);
+    while (!cardShown) await sleep(30);
+    if (k < shots.length - 1) await sleep(900);
+  }
+  await sleep(Math.max(0, 30000 - (performance.now() - start)));
+  if (obs && obs.stopRecording) obs.stopRecording();
+}
 </script>
 </body>
 </html>
